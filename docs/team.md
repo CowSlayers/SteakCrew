@@ -6,11 +6,11 @@ title:  Team
 # {{ page.title }}
 
 
-## USER 1
-***UCI Net ID***: ucinetid1
+## Corey Tan
+***UCI Net ID***: coreyct
 
-## USER 2
-***UCI Net ID***: ucinetid2
+## Rebecca Huang
+***UCI Net ID***: rmhuang1
 
-## USER 3
-***UCI Net ID***: ucinetid3
+## Jaydev Patel
+***UCI Net ID***: jaydevp
