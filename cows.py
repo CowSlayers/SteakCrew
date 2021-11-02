@@ -23,9 +23,9 @@ class DiamondCollector(gym.Env):
     def __init__(self, env_config):  
         # Static Parameters
         self.size = 50
-        self.reward_density = .1
-        self.penalty_density = .02
-        self.obs_size = 5
+        self.cow_density = .005
+        self.mushroom_cow_density = .001
+        self.obs_size = 20
         self.max_episode_steps = 100
         self.log_frequency = 10
         self.action_dict = {
@@ -52,7 +52,7 @@ class DiamondCollector(gym.Env):
 
         # DiamondCollector Parameters
         self.obs = None
-        self.allow_break_action = False
+        self.allow_shoot_action = False
         self.episode_step = 0
         self.episode_return = 0
         self.returns = []
@@ -81,7 +81,7 @@ class DiamondCollector(gym.Env):
             self.log_returns()
 
         # Get Observation
-        self.obs, self.allow_break_action = self.get_observation(world_state)
+        self.obs, self.allow_shoot_action = self.get_observation(world_state)
 
         return self.obs
 
@@ -115,7 +115,7 @@ class DiamondCollector(gym.Env):
         attack_command = "attack {}".format(attack)
         
         #command = self.action_dict[action]
-        if attack_command != 'attack 1' or self.allow_break_action==False:
+        if attack_command != 'attack 1' or self.allow_shoot_action==False:
             self.agent_host.sendCommand(move_command)
             self.agent_host.sendCommand(turn_command)
             time.sleep(.2)
@@ -133,7 +133,7 @@ class DiamondCollector(gym.Env):
         world_state = self.agent_host.getWorldState()
         for error in world_state.errors:
             print("Error:", error.text)
-        self.obs, self.allow_break_action = self.get_observation(world_state) 
+        self.obs, self.allow_shoot_action = self.get_observation(world_state) 
 
         # Get Done
         done = not world_state.is_mission_running 
@@ -150,23 +150,21 @@ class DiamondCollector(gym.Env):
         import random
 
         my_xml = ""
-        base_xml = "<DrawBlock x='{}' y='{}' z='{}' type='{}' />"
-        diamond_probability = int(self.reward_density * 100)
-        lava_probability = int(self.penalty_density * 100)
+        base_xml = "<DrawEntity x='{}' y='{}' z='{}' type='{}' xVel='1' zVel='1' />"
+        cow_probability = int(self.cow_density * 1000)
+        mushroom_cow_probability = int(self.mushroom_cow_density * 1000)
         chance = None
         #construct the xml here
-        count = 0
         for x in range(-50, 50):
             for z in range(-50, 50):
-                chance = random.randint(1, 100)
-                if chance <= lava_probability:
-                    my_xml += base_xml.format(x, 1, z, 'lava')
-                elif chance <= diamond_probability:
-                    count += 1
-                    my_xml += base_xml.format(x, 2, z, 'diamond_ore')
-                
-        print("total\n", count)
-        print("percentage\n", count/10200)
+                chance = random.randint(1, 1000)
+                if chance <= mushroom_cow_probability:
+                    my_xml += base_xml.format(x, 2, z, 'MushroomCow')
+                elif chance <= cow_probability:
+                    my_xml += base_xml.format(x, 2, z, 'Cow')
+
+        print("XML HERE: ", my_xml)
+        print()
 
         return '''<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
                 <Mission xmlns="http://ProjectMalmo.microsoft.com" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
@@ -187,7 +185,7 @@ class DiamondCollector(gym.Env):
                             <FlatWorldGenerator generatorString="3;7,2;1;"/>
                             <DrawingDecorator>''' + \
                                 "<DrawCuboid x1='{}' x2='{}' y1='2' y2='2' z1='{}' z2='{}' type='air'/>".format(-self.size, self.size, -self.size, self.size) + \
-                                "<DrawCuboid x1='{}' x2='{}' y1='1' y2='1' z1='{}' z2='{}' type='stone'/>".format(-self.size, self.size, -self.size, self.size) + \
+                                "<DrawCuboid x1='{}' x2='{}' y1='1' y2='1' z1='{}' z2='{}' type='grass'/>".format(-self.size, self.size, -self.size, self.size) + \
                                 my_xml + \
                                 '''
                                 <DrawBlock x='0'  y='2' z='0' type='air' />
@@ -202,7 +200,8 @@ class DiamondCollector(gym.Env):
                         <AgentStart>
                             <Placement x="0.5" y="2" z="0.5" pitch="45" yaw="0"/>
                             <Inventory>
-                                <InventoryItem slot="0" type="diamond_pickaxe"/>
+                                <InventoryItem slot="0" type="bow"/>
+                                <InventoryItem slot="1" type="arrow" quantity="64"/>
                             </Inventory>
                         </AgentStart>
                         <AgentHandlers>
@@ -215,6 +214,14 @@ class DiamondCollector(gym.Env):
                                     <max x="'''+str(int(self.obs_size/2))+'''" y="0" z="'''+str(int(self.obs_size/2))+'''"/>
                                 </Grid>
                             </ObservationFromGrid>
+                            <ObservationFromNearbyEntities>
+                                <Range name="Entities">
+                                    <name="nameneeded"/>
+                                    <xrange="20"/>
+                                    <yrange="1"/>
+                                    <zrange="20"/>
+                                </Range>
+                            </ObservationFromNearbyEntities>
                             <RewardForCollectingItem>
                                 <Item reward="1" type="diamond"/>
                             </RewardForCollectingItem>
@@ -245,7 +252,7 @@ class DiamondCollector(gym.Env):
 
         for retry in range(max_retries):
             try:
-                self.agent_host.startMission( my_mission, my_clients, my_mission_record, 0, 'DiamondCollector' )
+                self.agent_host.startMission( my_mission, my_clients, my_mission_record, 0, 'SteakCollector' )
                 break
             except RuntimeError as e:
                 if retry == max_retries - 1:
@@ -265,7 +272,7 @@ class DiamondCollector(gym.Env):
 
     def get_observation(self, world_state):
         """
-        Use the agent observation API to get a flattened 2 x 5 x 5 grid around the agent. 
+        Use the agent observation API to get a flattened 2 x 20 x 20 grid around the agent. 
         The agent is in the center square facing up.
 
         Args
@@ -273,10 +280,11 @@ class DiamondCollector(gym.Env):
 
         Returns
             observation: <np.array> the state observation
-            allow_break_action: <bool> whether the agent is facing a diamond
+            allow_shoot_action: <bool> whether the agent is facing a diamond
         """
-        obs = np.zeros((2 * self.obs_size * self.obs_size, ))
-        allow_break_action = False
+        obs = np.zeros((2 * self.obs_size * self.obs_size, )) #cows
+        obs2 = np.zeros((2 * self.obs_size * self.obs_size, )) #obstacles
+        allow_shoot_action = False
 
         while world_state.is_mission_running:
             time.sleep(0.1)
@@ -290,9 +298,11 @@ class DiamondCollector(gym.Env):
                 observations = json.loads(msg)
 
                 # Get observation
+                print("OBSERVATIONS: ", observations)
                 grid = observations['floorAll']
-                for i, x in enumerate(grid):
-                    obs[i] = x == 'diamond_ore' or x == 'lava'
+                cows = observations['Entities']
+                for i, x in enumerate(cows):
+                    obs[i] = x == 'Cow'
 
                 # Rotate observation with orientation of agent
                 obs = obs.reshape((2, self.obs_size, self.obs_size))
@@ -305,11 +315,11 @@ class DiamondCollector(gym.Env):
                     obs = np.rot90(obs, k=3, axes=(1, 2))
                 obs = obs.flatten()
 
-                allow_break_action = observations['LineOfSight']['type'] == 'diamond_ore'
+                allow_shoot_action = observations['LineOfSight']['type'] == 'Cow'
                 
                 break
 
-        return obs, allow_break_action
+        return obs, allow_shoot_action
 
     def log_returns(self):
         """
