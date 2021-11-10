@@ -23,8 +23,9 @@ class DiamondCollector(gym.Env):
     def __init__(self, env_config):  
         # Static Parameters
         self.size = 50
-        self.cow_density = .005
-        self.mushroom_cow_density = .001
+        self.cow_density = .01
+        self.mushroom_cow_density = .002
+        self.obstacle_density = .05
         self.obs_size = 20
         self.max_episode_steps = 100
         self.log_frequency = 10
@@ -163,9 +164,27 @@ class DiamondCollector(gym.Env):
                 elif chance <= cow_probability:
                     my_xml += base_xml.format(x, 2, z, 'Cow')
 
-        print("XML HERE: ", my_xml)
-        print()
+        #print("XML HERE: ", my_xml)
 
+        #drawing glass obstacles in my_xml2
+        my_xml2 = ""
+        base_xml2 = "<DrawBlock x='{}' y='{}' z='{}' type='{}'/>"
+        obstacle_probability = int(self.obstacle_density * 1000)
+        chance = None
+        #construct the xml here
+        for x in range(-50, 50):
+            for z in range(-50, 50):
+                chance = random.randint(1, 1000)
+                if chance <= obstacle_probability:
+                    my_xml2 += base_xml2.format(x, 2, z, 'glass')
+                    my_xml2 += base_xml2.format(x, 3, z, 'glass')
+                if chance <= obstacle_probability * 0.75:
+                    my_xml2 += base_xml2.format(x, 4, z, 'glass')
+                if chance <= obstacle_probability * 0.5:
+                    my_xml2 += base_xml2.format(x, 5, z, 'glass')
+                if chance <= obstacle_probability * 0.25:
+                    my_xml2 += base_xml2.format(x, 6, z, 'glass')
+                    
         return '''<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
                 <Mission xmlns="http://ProjectMalmo.microsoft.com" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 
@@ -187,6 +206,7 @@ class DiamondCollector(gym.Env):
                                 "<DrawCuboid x1='{}' x2='{}' y1='2' y2='2' z1='{}' z2='{}' type='air'/>".format(-self.size, self.size, -self.size, self.size) + \
                                 "<DrawCuboid x1='{}' x2='{}' y1='1' y2='1' z1='{}' z2='{}' type='grass'/>".format(-self.size, self.size, -self.size, self.size) + \
                                 my_xml + \
+                                my_xml2 + \
                                 '''
                                 <DrawBlock x='0'  y='2' z='0' type='air' />
                                 <DrawBlock x='0'  y='1' z='0' type='stone' />
@@ -215,12 +235,7 @@ class DiamondCollector(gym.Env):
                                 </Grid>
                             </ObservationFromGrid>
                             <ObservationFromNearbyEntities>
-                                <Range name="Entities">
-                                    <name="nameneeded"/>
-                                    <xrange="20"/>
-                                    <yrange="1"/>
-                                    <zrange="20"/>
-                                </Range>
+                                <Range name="Entities" xrange="20" yrange="1" zrange="20" update_frequency="20"/>
                             </ObservationFromNearbyEntities>
                             <RewardForCollectingItem>
                                 <Item reward="1" type="diamond"/>
@@ -228,7 +243,6 @@ class DiamondCollector(gym.Env):
                             <RewardForTouchingBlockType>
                                 <Block reward="-1" type="lava" behaviour="onceOnly"/>
                             </RewardForTouchingBLockType>
-
                             <AgentQuitFromReachingCommandQuota total="'''+str(self.max_episode_steps)+'''" />
                             <AgentQuitFromTouchingBlockType>
                                 <Block type="bedrock" />
