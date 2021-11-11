@@ -18,7 +18,7 @@ from gym.spaces import Discrete, Box
 from ray.rllib.agents import ppo
 
 
-class DiamondCollector(gym.Env):
+class CowShooter(gym.Env):
 
     def __init__(self, env_config):  
         # Static Parameters
@@ -189,7 +189,7 @@ class DiamondCollector(gym.Env):
                 <Mission xmlns="http://ProjectMalmo.microsoft.com" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 
                     <About>
-                        <Summary>Diamond Collector</Summary>
+                        <Summary>Cow Shooter</Summary>
                     </About>
 
                     <ServerSection>
@@ -216,7 +216,7 @@ class DiamondCollector(gym.Env):
                     </ServerSection>
 
                     <AgentSection mode="Survival">
-                        <Name>CS175DiamondCollector</Name>
+                        <Name>CS175CowShooter</Name>
                         <AgentStart>
                             <Placement x="0.5" y="2" z="0.5" pitch="45" yaw="0"/>
                             <Inventory>
@@ -235,7 +235,7 @@ class DiamondCollector(gym.Env):
                                 </Grid>
                             </ObservationFromGrid>
                             <ObservationFromNearbyEntities>
-                                <Range name="Entities" xrange="20" yrange="1" zrange="20" update_frequency="20"/>
+                                <Range name="entities" xrange="20" yrange="1" zrange="20" update_frequency="20"/>
                             </ObservationFromNearbyEntities>
                             <RewardForCollectingItem>
                                 <Item reward="1" type="diamond"/>
@@ -297,7 +297,7 @@ class DiamondCollector(gym.Env):
             allow_shoot_action: <bool> whether the agent is facing a diamond
         """
         obs = np.zeros((2 * self.obs_size * self.obs_size, )) #cows
-        obs2 = np.zeros((2 * self.obs_size * self.obs_size, )) #obstacles
+        #obs2 = np.zeros((2 * self.obs_size * self.obs_size, )) #obstacles
         allow_shoot_action = False
 
         while world_state.is_mission_running:
@@ -311,12 +311,10 @@ class DiamondCollector(gym.Env):
                 msg = world_state.observations[-1].text
                 observations = json.loads(msg)
 
+                if "entities" in observations:
+                    print(observations["entities"])
+
                 # Get observation
-                print("OBSERVATIONS: ", observations)
-                grid = observations['floorAll']
-                cows = observations['Entities']
-                for i, x in enumerate(cows):
-                    obs[i] = x == 'Cow'
 
                 # Rotate observation with orientation of agent
                 obs = obs.reshape((2, self.obs_size, self.obs_size))
@@ -347,7 +345,7 @@ class DiamondCollector(gym.Env):
         returns_smooth = np.convolve(self.returns[1:], box, mode='same')
         plt.clf()
         plt.plot(self.steps[1:], returns_smooth)
-        plt.title('Diamond Collector')
+        plt.title('Cow Shooter')
         plt.ylabel('Return')
         plt.xlabel('Steps')
         plt.savefig('returns.png')
@@ -359,7 +357,7 @@ class DiamondCollector(gym.Env):
 
 if __name__ == '__main__':
     ray.init()
-    trainer = ppo.PPOTrainer(env=DiamondCollector, config={
+    trainer = ppo.PPOTrainer(env=CowShooter, config={
         'env_config': {},           # No environment parameters to configure
         'framework': 'torch',       # Use pyotrch instead of tensorflow
         'num_gpus': 0,              # We aren't using GPUs
