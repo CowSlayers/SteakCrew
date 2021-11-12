@@ -113,21 +113,61 @@ class CowShooter(gym.Env):
             attack = 1
         move_command = "move {}".format(move)
         turn_command = "turn {}".format(turn)
-        attack_command = "attack {}".format(attack)
+        attack_command = "use {}".format(attack)
         
         #command = self.action_dict[action]
-        if attack_command != 'attack 1' or self.allow_shoot_action==False:
+        if attack_command != 'use 1' or self.allow_shoot_action==False:
             self.agent_host.sendCommand(move_command)
             self.agent_host.sendCommand(turn_command)
             time.sleep(.2)
             self.episode_step += 1
         else:
-            print("go here")
-            self.agent_host.sendCommand(attack_command)
+            print("GOES HERE SHOOTING")
+            #turn and angle
+            print("current agent yaw: ", self.allow_shoot_action[0])
+            print("current agent position: ", self.allow_shoot_action[1], self.allow_shoot_action[2])
+            print("the cow we're shooting position: ", self.allow_shoot_action[3], self.allow_shoot_action[4])
+
+            vector_1 = [self.allow_shoot_action[1], self.allow_shoot_action[2]]
+            vector_2 = [self.allow_shoot_action[3], self.allow_shoot_action[4]]
+
+            uv1 = vector_1 / np.linalg.norm(vector_1)
+            uv2 = vector_2 / np.linalg.norm(vector_2)
+            prod = np.dot(uv1, uv2)
+            angle = np.arccos(prod)
+
+            import math
+            degrees = math.degrees(math.pi/angle)
+
+            print("here", angle, degrees)
+            yaw = 0
+
+            #calculate yaw based on degrees
+            if 90 <= degrees <= 360: #positive yaw, 90, 180, 270
+                # we want to get to 180 -> 90 -> 0
+                yaw = 270 - degrees
+            else: #negative yaw
+                yaw = -90 - degrees
+
+            match = False
+
             self.agent_host.sendCommand("move 0")
+            self.agent_host.sendCommand("turn 0.1")
+            while not match:
+                world_state = self.agent_host.getWorldState()
+                if world_state.number_of_observations_since_last_state > 0:
+                    msg = world_state.observations[-1].text
+                    observations = json.loads(msg)
+                    current_yaw = observations['Yaw']
+                    print(observations['Yaw'])
+                    print(current_yaw, degrees)
+                    if abs(current_yaw - degrees) < 1:
+                        match = True 
+               
             self.agent_host.sendCommand("turn 0")
-            time.sleep(.8)
-            self.agent_host.sendCommand("attack 0")
+            self.agent_host.sendCommand(attack_command)
+            time.sleep(2)
+            self.agent_host.sendCommand("use 0")
             self.episode_step += 1
 
         # Get Observation
@@ -152,6 +192,7 @@ class CowShooter(gym.Env):
 
         my_xml = ""
         base_xml = "<DrawEntity x='{}' y='{}' z='{}' type='{}' xVel='1' zVel='1' />"
+        """
         cow_probability = int(self.cow_density * 1000)
         mushroom_cow_probability = int(self.mushroom_cow_density * 1000)
         chance = None
@@ -163,10 +204,13 @@ class CowShooter(gym.Env):
                     my_xml += base_xml.format(x, 2, z, 'MushroomCow')
                 elif chance <= cow_probability:
                     my_xml += base_xml.format(x, 2, z, 'Cow')
+        """
+        my_xml += base_xml.format(5, 2, 5, 'Cow')
 
         #print("XML HERE: ", my_xml)
 
         #drawing glass obstacles in my_xml2
+        """
         my_xml2 = ""
         base_xml2 = "<DrawBlock x='{}' y='{}' z='{}' type='{}'/>"
         obstacle_probability = int(self.obstacle_density * 1000)
@@ -184,6 +228,8 @@ class CowShooter(gym.Env):
                     my_xml2 += base_xml2.format(x, 5, z, 'glass')
                 if chance <= obstacle_probability * 0.25:
                     my_xml2 += base_xml2.format(x, 6, z, 'glass')
+
+        """
                     
         return '''<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
                 <Mission xmlns="http://ProjectMalmo.microsoft.com" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
@@ -206,7 +252,6 @@ class CowShooter(gym.Env):
                                 "<DrawCuboid x1='{}' x2='{}' y1='2' y2='2' z1='{}' z2='{}' type='air'/>".format(-self.size, self.size, -self.size, self.size) + \
                                 "<DrawCuboid x1='{}' x2='{}' y1='1' y2='1' z1='{}' z2='{}' type='grass'/>".format(-self.size, self.size, -self.size, self.size) + \
                                 my_xml + \
-                                my_xml2 + \
                                 '''
                                 <DrawBlock x='0'  y='2' z='0' type='air' />
                                 <DrawBlock x='0'  y='1' z='0' type='stone' />
@@ -218,7 +263,7 @@ class CowShooter(gym.Env):
                     <AgentSection mode="Survival">
                         <Name>CS175CowShooter</Name>
                         <AgentStart>
-                            <Placement x="0.5" y="2" z="0.5" pitch="45" yaw="0"/>
+                            <Placement x="0.5" y="2" z="0.5" pitch="0" yaw="0"/>
                             <Inventory>
                                 <InventoryItem slot="0" type="bow"/>
                                 <InventoryItem slot="1" type="arrow" quantity="64"/>
@@ -237,12 +282,10 @@ class CowShooter(gym.Env):
                             <ObservationFromNearbyEntities>
                                 <Range name="entities" xrange="20" yrange="1" zrange="20" update_frequency="20"/>
                             </ObservationFromNearbyEntities>
-                            <RewardForCollectingItem>
-                                <Item reward="1" type="diamond"/>
-                            </RewardForCollectingItem>
-                            <RewardForTouchingBlockType>
-                                <Block reward="-1" type="lava" behaviour="onceOnly"/>
-                            </RewardForTouchingBLockType>
+                            <RewardForDamagingEntity>
+                                <Mob type="Cow" reward="1"/>
+                                <Mob type="MushroomCow" reward="1"/>
+                            </RewardForDamagingEntity>
                             <AgentQuitFromReachingCommandQuota total="'''+str(self.max_episode_steps)+'''" />
                             <AgentQuitFromTouchingBlockType>
                                 <Block type="bedrock" />
@@ -311,8 +354,16 @@ class CowShooter(gym.Env):
                 msg = world_state.observations[-1].text
                 observations = json.loads(msg)
 
+                allow_shoot_action = False
+
                 if "entities" in observations:
-                    print(observations["entities"])
+                    print("found cows:", observations["entities"])
+                    print()
+                    print()
+                    #get positions
+                    agent_info = observations["entities"][0]
+                    first_cow = observations["entities"][1]
+                    allow_shoot_action = [agent_info['yaw'], agent_info['x'], agent_info['z'], first_cow['x'], first_cow['z']]
 
                 # Get observation
 
@@ -326,8 +377,6 @@ class CowShooter(gym.Env):
                 elif yaw >= 45 and yaw < 135:
                     obs = np.rot90(obs, k=3, axes=(1, 2))
                 obs = obs.flatten()
-
-                allow_shoot_action = observations['LineOfSight']['type'] == 'Cow'
                 
                 break
 
