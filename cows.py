@@ -17,6 +17,7 @@ import gym, ray
 from gym.spaces import Discrete, Box
 from ray.rllib.agents import ppo
 
+import math
 
 class CowShooter(gym.Env):
 
@@ -122,37 +123,33 @@ class CowShooter(gym.Env):
             time.sleep(.2)
             self.episode_step += 1
         else:
+            self.agent_host.sendCommand("move 0")
+
             print("GOES HERE SHOOTING")
             #turn and angle
             print("current agent yaw: ", self.allow_shoot_action[0])
             print("current agent position: ", self.allow_shoot_action[1], self.allow_shoot_action[2])
             print("the cow we're shooting position: ", self.allow_shoot_action[3], self.allow_shoot_action[4])
 
-            vector_1 = [self.allow_shoot_action[1], self.allow_shoot_action[2]]
-            vector_2 = [self.allow_shoot_action[3], self.allow_shoot_action[4]]
+            agent_vector = [self.allow_shoot_action[1], self.allow_shoot_action[2]]
+            cow_vector = [self.allow_shoot_action[3], self.allow_shoot_action[4]]
 
-            uv1 = vector_1 / np.linalg.norm(vector_1)
-            uv2 = vector_2 / np.linalg.norm(vector_2)
-            prod = np.dot(uv1, uv2)
-            angle = np.arccos(prod)
+            direction_vector = [agent_vector[0] - cow_vector[0], agent_vector[1] - cow_vector[1]]
 
-            import math
-            degrees = math.degrees(math.pi/angle)
+            degrees = math.degrees(math.atan(direction_vector[1]/direction_vector[0]))
 
-            print("here", angle, degrees)
+            print("here", degrees)
             yaw = 0
 
             #calculate yaw based on degrees
             if 90 <= degrees <= 360: #positive yaw, 90, 180, 270
                 # we want to get to 180 -> 90 -> 0
-                yaw = 270 - degrees
+                yaw = degrees - 90
             else: #negative yaw
-                yaw = -90 - degrees
+                yaw = 270 + degrees
 
             match = False
-
-            self.agent_host.sendCommand("move 0")
-            self.agent_host.sendCommand("turn 0.1")
+            self.agent_host.sendCommand("turn 0.2")
             while not match:
                 world_state = self.agent_host.getWorldState()
                 if world_state.number_of_observations_since_last_state > 0:
@@ -160,13 +157,13 @@ class CowShooter(gym.Env):
                     observations = json.loads(msg)
                     current_yaw = observations['Yaw']
                     print(observations['Yaw'])
-                    print(current_yaw, degrees)
-                    if abs(current_yaw - degrees) < 1:
+                    print(current_yaw, yaw)
+                    if abs(current_yaw - yaw) < 1.5:
                         match = True 
                
             self.agent_host.sendCommand("turn 0")
             self.agent_host.sendCommand(attack_command)
-            time.sleep(2)
+            time.sleep(1)
             self.agent_host.sendCommand("use 0")
             self.episode_step += 1
 
@@ -192,7 +189,6 @@ class CowShooter(gym.Env):
 
         my_xml = ""
         base_xml = "<DrawEntity x='{}' y='{}' z='{}' type='{}' xVel='1' zVel='1' />"
-        """
         cow_probability = int(self.cow_density * 1000)
         mushroom_cow_probability = int(self.mushroom_cow_density * 1000)
         chance = None
@@ -204,8 +200,8 @@ class CowShooter(gym.Env):
                     my_xml += base_xml.format(x, 2, z, 'MushroomCow')
                 elif chance <= cow_probability:
                     my_xml += base_xml.format(x, 2, z, 'Cow')
-        """
-        my_xml += base_xml.format(5, 2, 5, 'Cow')
+
+        #my_xml += base_xml.format(0, 2, 5, 'Cow')
 
         #print("XML HERE: ", my_xml)
 
@@ -362,7 +358,9 @@ class CowShooter(gym.Env):
                     print()
                     #get positions
                     agent_info = observations["entities"][0]
-                    first_cow = observations["entities"][1]
+                    cows = sorted(observations["entities"][1:], key=lambda x: math.sqrt((x['x']-agent_info['x'])**2 + (x['z']-agent_info['z'])**2))
+                    print("COWS: ", cows)
+                    first_cow = cows[0]
                     allow_shoot_action = [agent_info['yaw'], agent_info['x'], agent_info['z'], first_cow['x'], first_cow['z']]
 
                 # Get observation
