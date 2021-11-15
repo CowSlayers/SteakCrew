@@ -3,7 +3,9 @@ layout: default
 title:  Home
 ---
 
-Source code: https://github.com/CowSlayers/SteakCrew (_fix this_)
+## Welcome 
+Welcome to our Cow Slayer Project Page, this is a project for CS 175 - Project in AI (In Minecraft). 
+In this project, we apply reinforment learning algorithms to teach our AI agent how to shoot cows with improving accuracy.
 
 Reports:
 
@@ -11,30 +13,7 @@ Reports:
 - [Status](status.html)
 - [Final](final.html)
 
-What's Markdown (`.md`)?
+Source code: https://github.com/CowSlayers/SteakCrew
 
-Markdown is markup that lets you write hypertext (HTML) documents
-in easy-to-read and easy-to-write plain text.
-No angle brackets `<></>` required for
-paragraphs, lists, blockquotes, tables, etc.
-
-
-This is a paragraph (in Markdown). Some more
-text here.
-
-This is another paragraph.
-
-This is a list:
-
-- Orange
-- Apple
-- Blueberry
-
-$$x^2 = y^2$$
-
-
-Just getting started with Markdown?
-See the [HTML <-> Markdown Quick Reference (Cheat Sheet)][quickref].
-
-
-[quickref]: https://github.com/mundimark/quickrefs/blob/master/HTML.md
+## Summary
+Our project will involve training an agent to shoot cows effectively. It will be the agent's goal to move, turn, and shoot cows scattered throughout the world. Using Malmo, along with some Reinforcement Learning algorithms, the agent will take in a state which includes the agent's current posititon in (x, y, z) format and the agent's yaw (the direction the agent is facing). The agent's reward for any one mission will be dependant on how many cows were successfull shot. The action space will be continuous and include the following actions: moving forward, turning, and using the bow. This action pool may have more or fewer actions in the future as we learn what creative features we can implement in the agent's mission.
