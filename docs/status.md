@@ -3,7 +3,7 @@ layout: default
 title: Status
 ---
 
-![Watch Demo Here](https://www.youtube.com/watch?v=EoC5cjQLEZE)
+[![Watch the video](https://imgur.com/t/minecraft/RvY0UI5)](https://www.youtube.com/watch?v=EoC5cjQLEZE)
 
 ## Project Summary:
 Since things may have changed since proposal (even if they haven’t), write a short paragraph summarizing the goals of the project (updated/improved version from the proposal).
