@@ -28,7 +28,7 @@ Quantitative Eval: Currently, we are rewarding the agent with a reward for 1 for
 
 Qualitative Eval: Our agent passes the following sanity cases:  firing an arrow, moving, and facing different directions. We are able to pass our baseline case to shoot down one cow. To better visualise the algorithm working within the game, we will have our project record and output data used to create error charts and graphs. This will allow us to compare different implementations and visualize the agent’s performance across multiple games. The moonshot case is to have 100% accuracy killing all the cows (each arrow hits a cow), but a value close to 100% would also indicate the algorithm is effective.
 
-![Rewards over time](https://github.com/CowSlayers/SteakCrew/blob/main/static/returns.png?raw=true)
+![Rewards over time](https://github.com/CowSlayers/SteakCrew/blob/main/static/returns.png?raw=true=250x)
 
 
 ## Remaining Goals and Challenges: 
