@@ -5,7 +5,7 @@ title: Status
 
 # Click to Watch
 
-[![Watch the video](https://i.imgur.com/WemUoPa.jpeg)](https://www.youtube.com/watch?v=EoC5cjQLEZE){:width="30px"}
+[![Watch the video](https://i.imgur.com/WemUoPa.jpeg){:width="30px"}](https://www.youtube.com/watch?v=EoC5cjQLEZE)
 
 ## Project Summary:
 Since things may have changed since proposal (even if they haven’t), write a short paragraph summarizing the goals of the project (updated/improved version from the proposal).
