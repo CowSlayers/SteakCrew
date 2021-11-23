@@ -28,7 +28,7 @@ class CowShooter(gym.Env):
         self.mushroom_cow_density = .002
         self.obstacle_density = .05
         self.obs_size = 40
-        self.max_episode_steps = 100
+        self.max_episode_steps = 400
         self.log_frequency = 10
         self.action_dict = {
             0: 'move 1',  # Move one block forward
@@ -123,12 +123,19 @@ class CowShooter(gym.Env):
             time.sleep(.2)
             self.episode_step += 1
         else:
+            distance = math.sqrt((self.allow_shoot_action[4] -  self.allow_shoot_action[2])**2 + (self.allow_shoot_action[3] - self.allow_shoot_action[1])**2)
             self.agent_host.sendCommand("move 0")
             self.agent_host.sendCommand("turn 0")
 
-            print("GOES HERE SHOOTING")
+            print("GOES HERE SHOOTING for distance: ", distance)
 
-            self.agent_host.sendCommand("setPitch -3")
+            if 40 >= distance > 30: 
+                self.agent_host.sendCommand("setPitch -7")
+            elif 30 >= distance > 20:
+                self.agent_host.sendCommand("setPitch -5")
+            elif distance <= 20:
+                self.agent_host.sendCommand("setPitch -3.`")
+
             self.agent_host.sendCommand(attack_command)
             time.sleep(0.7)
             self.agent_host.sendCommand("use 0")
@@ -159,6 +166,7 @@ class CowShooter(gym.Env):
         my_xml = ""
         base_xml = "<DrawEntity x='{}' y='{}' z='{}' type='{}' xVel='1' zVel='1' />"
 
+        """
         cow_probability = int(self.cow_density * 1000)
         mushroom_cow_probability = int(self.mushroom_cow_density * 1000)
         chance = None
@@ -171,8 +179,11 @@ class CowShooter(gym.Env):
                 elif chance <= cow_probability:
                     my_xml += base_xml.format(x, 2, z, 'Cow')
 
-        #drawing glass obstacles in my_xml2
         """
+        my_xml += base_xml.format(5, 2, 5, 'Cow')
+
+        #drawing glass obstacles in my_xml2
+        
         my_xml2 = ""
         base_xml2 = "<DrawBlock x='{}' y='{}' z='{}' type='{}'/>"
         obstacle_probability = int(self.obstacle_density * 1000)
@@ -191,7 +202,6 @@ class CowShooter(gym.Env):
                 if chance <= obstacle_probability * 0.25:
                     my_xml2 += base_xml2.format(x, 6, z, 'glass')
 
-        """
                     
         return '''<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
                 <Mission xmlns="http://ProjectMalmo.microsoft.com" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
@@ -214,6 +224,7 @@ class CowShooter(gym.Env):
                                 "<DrawCuboid x1='{}' x2='{}' y1='2' y2='2' z1='{}' z2='{}' type='air'/>".format(-self.size, self.size, -self.size, self.size) + \
                                 "<DrawCuboid x1='{}' x2='{}' y1='1' y2='1' z1='{}' z2='{}' type='grass'/>".format(-self.size, self.size, -self.size, self.size) + \
                                 my_xml + \
+                                my_xml2 + \
                                 '''
                                 <DrawBlock x='0'  y='2' z='0' type='air' />
                                 <DrawBlock x='0'  y='1' z='0' type='stone' />
@@ -243,6 +254,9 @@ class CowShooter(gym.Env):
                                     <max x="'''+str(int(self.obs_size/2))+'''" y="0" z="'''+str(int(self.obs_size/2))+'''"/>
                                 </Grid>
                             </ObservationFromGrid>
+                            <ObservationFromNearbyEntities>
+                                <Range name="entities" xrange="20" yrange="1" zrange="20" update_frequency="20"/>
+                            </ObservationFromNearbyEntities>
                             <RewardForDamagingEntity>
                                 <Mob type="Cow" reward="1"/>
                                 <Mob type="MushroomCow" reward="1"/>
@@ -318,7 +332,7 @@ class CowShooter(gym.Env):
 
                 allow_shoot_action = False
 
-                    # Get observation
+                #shoot if in plain sight
                 if u'LineOfSight' in observations:
                     los = observations[u'LineOfSight']
                     type=los["type"]
@@ -326,6 +340,20 @@ class CowShooter(gym.Env):
                         print("HERE", observations["LineOfSight"])
                         cow = observations["LineOfSight"]
                         allow_shoot_action = [observations['Yaw'], observations['XPos'], observations['ZPos'], cow['x'], cow['z']]
+                    elif type == "glass":
+                        print("I SPY GLASS: :oOOOOOOOOOOOOOOOOOO", observations["LineOfSight"])
+
+                #else check observations
+                elif "entities" in observations:
+                    print("found cows:", observations["entities"])
+                    print("\n\n")
+                    
+                    #get positions
+                    agent_info = observations["entities"][0]
+                    cows = sorted(observations["entities"][1:], key=lambda x: math.sqrt((x['x']-agent_info['x'])**2 + (x['z']-agent_info['z'])**2))
+                    print("COWS: ", cows)
+                    if len(cows) != 0:
+                        first_cow = cows[0]
 
                 # Rotate observation with orientation of agent
                 obs = obs.reshape((2, self.obs_size, self.obs_size))
