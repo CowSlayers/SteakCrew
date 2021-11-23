@@ -23,11 +23,11 @@ class CowShooter(gym.Env):
 
     def __init__(self, env_config):  
         # Static Parameters
-        self.size = 50
+        self.size = 20
         self.cow_density = .01
         self.mushroom_cow_density = .002
         self.obstacle_density = .05
-        self.obs_size = 20
+        self.obs_size = 40
         self.max_episode_steps = 100
         self.log_frequency = 10
         self.action_dict = {
@@ -124,47 +124,16 @@ class CowShooter(gym.Env):
             self.episode_step += 1
         else:
             self.agent_host.sendCommand("move 0")
+            self.agent_host.sendCommand("turn 0")
 
             print("GOES HERE SHOOTING")
-            #turn and angle
-            print("current agent yaw: ", self.allow_shoot_action[0])
-            print("current agent position: ", self.allow_shoot_action[1], self.allow_shoot_action[2])
-            print("the cow we're shooting position: ", self.allow_shoot_action[3], self.allow_shoot_action[4])
 
-            agent_vector = [self.allow_shoot_action[1], self.allow_shoot_action[2]]
-            cow_vector = [self.allow_shoot_action[3], self.allow_shoot_action[4]]
-
-            direction_vector = [agent_vector[0] - cow_vector[0], agent_vector[1] - cow_vector[1]]
-
-            degrees = math.degrees(math.atan(direction_vector[1]/direction_vector[0]))
-
-            print("here", degrees)
-            yaw = 0
-
-            #calculate yaw based on degrees
-            if 90 <= degrees <= 360: #positive yaw, 90, 180, 270
-                # we want to get to 180 -> 90 -> 0
-                yaw = degrees - 90
-            else: #negative yaw
-                yaw = 270 + degrees
-
-            match = False
-            self.agent_host.sendCommand("turn 0.2")
-            while not match:
-                world_state = self.agent_host.getWorldState()
-                if world_state.number_of_observations_since_last_state > 0:
-                    msg = world_state.observations[-1].text
-                    observations = json.loads(msg)
-                    current_yaw = observations['Yaw']
-                    print(observations['Yaw'])
-                    print(current_yaw, yaw)
-                    if abs(current_yaw - yaw) < 1.5:
-                        match = True 
-               
-            self.agent_host.sendCommand("turn 0")
+            self.agent_host.sendCommand("setPitch -3")
             self.agent_host.sendCommand(attack_command)
-            time.sleep(1)
+            time.sleep(0.7)
             self.agent_host.sendCommand("use 0")
+            time.sleep(0.2)
+            self.agent_host.sendCommand("setPitch 4")
             self.episode_step += 1
 
         # Get Observation
@@ -189,21 +158,18 @@ class CowShooter(gym.Env):
 
         my_xml = ""
         base_xml = "<DrawEntity x='{}' y='{}' z='{}' type='{}' xVel='1' zVel='1' />"
+
         cow_probability = int(self.cow_density * 1000)
         mushroom_cow_probability = int(self.mushroom_cow_density * 1000)
         chance = None
         #construct the xml here
-        for x in range(-50, 50):
-            for z in range(-50, 50):
+        for x in range(-20, 20):
+            for z in range(-20, 20):
                 chance = random.randint(1, 1000)
                 if chance <= mushroom_cow_probability:
                     my_xml += base_xml.format(x, 2, z, 'MushroomCow')
                 elif chance <= cow_probability:
                     my_xml += base_xml.format(x, 2, z, 'Cow')
-
-        #my_xml += base_xml.format(0, 2, 5, 'Cow')
-
-        #print("XML HERE: ", my_xml)
 
         #drawing glass obstacles in my_xml2
         """
@@ -253,20 +219,22 @@ class CowShooter(gym.Env):
                                 <DrawBlock x='0'  y='1' z='0' type='stone' />
                             </DrawingDecorator>
                             <ServerQuitWhenAnyAgentFinishes/>
+                            <ServerQuitFromTimeUp timeLimitMs="60000"/>
                         </ServerHandlers>
                     </ServerSection>
 
                     <AgentSection mode="Survival">
                         <Name>CS175CowShooter</Name>
                         <AgentStart>
-                            <Placement x="0.5" y="2" z="0.5" pitch="0" yaw="0"/>
+                            <Placement x="0.5" y="2" z="0.5" pitch="4" yaw="0"/>
                             <Inventory>
                                 <InventoryItem slot="0" type="bow"/>
                                 <InventoryItem slot="1" type="arrow" quantity="64"/>
                             </Inventory>
                         </AgentStart>
                         <AgentHandlers>
-                            <ContinuousMovementCommands/>
+                            <AbsoluteMovementCommands/>
+                            <ContinuousMovementCommands turnSpeedDegs="150"/>
                             <ObservationFromFullStats/>
                             <ObservationFromRay/>
                             <ObservationFromGrid>
@@ -275,9 +243,6 @@ class CowShooter(gym.Env):
                                     <max x="'''+str(int(self.obs_size/2))+'''" y="0" z="'''+str(int(self.obs_size/2))+'''"/>
                                 </Grid>
                             </ObservationFromGrid>
-                            <ObservationFromNearbyEntities>
-                                <Range name="entities" xrange="20" yrange="1" zrange="20" update_frequency="20"/>
-                            </ObservationFromNearbyEntities>
                             <RewardForDamagingEntity>
                                 <Mob type="Cow" reward="1"/>
                                 <Mob type="MushroomCow" reward="1"/>
@@ -297,7 +262,8 @@ class CowShooter(gym.Env):
         my_mission = MalmoPython.MissionSpec(self.get_mission_xml(), True)
         my_mission_record = MalmoPython.MissionRecordSpec()
         my_mission.requestVideo(800, 500)
-        my_mission.setViewpoint(1)
+        my_mission.setViewpoint(0)
+        #my_mission_record.recordMP4(24,2000000)
 
         max_retries = 3
         my_clients = MalmoPython.ClientPool()
@@ -352,18 +318,14 @@ class CowShooter(gym.Env):
 
                 allow_shoot_action = False
 
-                if "entities" in observations:
-                    print("found cows:", observations["entities"])
-                    print()
-                    print()
-                    #get positions
-                    agent_info = observations["entities"][0]
-                    cows = sorted(observations["entities"][1:], key=lambda x: math.sqrt((x['x']-agent_info['x'])**2 + (x['z']-agent_info['z'])**2))
-                    print("COWS: ", cows)
-                    first_cow = cows[0]
-                    allow_shoot_action = [agent_info['yaw'], agent_info['x'], agent_info['z'], first_cow['x'], first_cow['z']]
-
-                # Get observation
+                    # Get observation
+                if u'LineOfSight' in observations:
+                    los = observations[u'LineOfSight']
+                    type=los["type"]
+                    if type == "Cow":
+                        print("HERE", observations["LineOfSight"])
+                        cow = observations["LineOfSight"]
+                        allow_shoot_action = [observations['Yaw'], observations['XPos'], observations['ZPos'], cow['x'], cow['z']]
 
                 # Rotate observation with orientation of agent
                 obs = obs.reshape((2, self.obs_size, self.obs_size))
