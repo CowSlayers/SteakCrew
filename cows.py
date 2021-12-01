@@ -122,19 +122,70 @@ class CowShooter(gym.Env):
             self.agent_host.sendCommand(turn_command)
             time.sleep(.2)
             self.episode_step += 1
-        else:
+        elif len(self.allow_shoot_action) == 6: #from nearby entities
+            print("SHOOTING COWS FROM NEARBY ENTTIY INFORMATION") 
+            #needs to turn towards the cow
+            print("current agent position: ", self.allow_shoot_action[1], self.allow_shoot_action[2])
+            print("the cow we're shooting position: ", self.allow_shoot_action[3], self.allow_shoot_action[4])
+
+            agent_vector = [self.allow_shoot_action[1], self.allow_shoot_action[2]]
+            cow_vector = [self.allow_shoot_action[3], self.allow_shoot_action[4]]
+            direction_vector = [agent_vector[0] - cow_vector[0], agent_vector[1] - cow_vector[1]]
+
+            x = direction_vector[0]
+            z = direction_vector[1]
+            print("atan2: ", math.atan2(direction_vector[1], direction_vector[0]))
+            radians = math.atan2(direction_vector[1],direction_vector[0])
+
+            degrees = radians * 180 / 3.14159265358979323
+            degrees += 180
+
+            print("VECTORS", agent_vector, cow_vector)
+            
+            if 0 <= degrees <= 180: #negative yaw
+                yaw = 0 - degrees
+            else: #positive yaw
+                yaw = 360 - degrees 
+            
+            print("shooting at yaw: ", yaw)
+            self.agent_host.sendCommand("setYaw {}".format(yaw))
+
             distance = math.sqrt((self.allow_shoot_action[4] -  self.allow_shoot_action[2])**2 + (self.allow_shoot_action[3] - self.allow_shoot_action[1])**2)
             self.agent_host.sendCommand("move 0")
             self.agent_host.sendCommand("turn 0")
 
-            print("GOES HERE SHOOTING for distance: ", distance)
+            print("GOES HERE SHOOTING NEARBY ENTITY for distance: ", distance)
 
-            if 40 >= distance > 30: 
-                self.agent_host.sendCommand("setPitch -7")
-            elif 30 >= distance > 20:
-                self.agent_host.sendCommand("setPitch -5")
-            elif distance <= 20:
-                self.agent_host.sendCommand("setPitch -3.`")
+            #calculate pitch based off of distance
+            #int pitch
+            pitch = 4 - (distance/2)
+
+            self.agent_host.sendCommand("setPitch {}".format(pitch))
+
+            self.agent_host.sendCommand(attack_command)
+            time.sleep(0.7)
+            self.agent_host.sendCommand("use 0")
+            time.sleep(0.2)
+            self.agent_host.sendCommand("setPitch 4")
+            self.episode_step += 1
+
+            """
+            if yaw<0:
+                yaw += 360
+            """
+
+        else: #from line of sight
+            distance = math.sqrt((self.allow_shoot_action[4] -  self.allow_shoot_action[2])**2 + (self.allow_shoot_action[3] - self.allow_shoot_action[1])**2)
+            self.agent_host.sendCommand("move 0")
+            self.agent_host.sendCommand("turn 0")
+
+            print("GOES HERE SHOOTING lineofsight for distance: ", distance)
+
+            #calculate pitch based off of distance
+            #int pitch
+            pitch = 4 - distance/4
+
+            self.agent_host.sendCommand("setPitch {}".format(pitch))
 
             self.agent_host.sendCommand(attack_command)
             time.sleep(0.7)
@@ -180,12 +231,16 @@ class CowShooter(gym.Env):
                     my_xml += base_xml.format(x, 2, z, 'Cow')
 
         """
-        my_xml += base_xml.format(5, 2, 5, 'Cow')
+        my_xml += base_xml.format(2, 2, 2, 'Cow')
+
 
         #drawing glass obstacles in my_xml2
         
         my_xml2 = ""
+
+        
         base_xml2 = "<DrawBlock x='{}' y='{}' z='{}' type='{}'/>"
+        """
         obstacle_probability = int(self.obstacle_density * 1000)
         chance = None
         #construct the xml here
@@ -201,6 +256,14 @@ class CowShooter(gym.Env):
                     my_xml2 += base_xml2.format(x, 5, z, 'glass')
                 if chance <= obstacle_probability * 0.25:
                     my_xml2 += base_xml2.format(x, 6, z, 'glass')
+        """
+    
+        
+
+        my_xml2 += base_xml2.format(6, 2, 3, 'glass')
+        my_xml2 += base_xml2.format(6, 3, 3, 'glass')
+        my_xml2 += base_xml2.format(6, 2, 2, 'glass')
+        my_xml2 += base_xml2.format(6, 3, 2, 'glass')
 
                     
         return '''<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
@@ -336,24 +399,28 @@ class CowShooter(gym.Env):
                 if u'LineOfSight' in observations:
                     los = observations[u'LineOfSight']
                     type=los["type"]
-                    if type == "Cow":
-                        print("HERE", observations["LineOfSight"])
+                    if type in ["Cow", "MushroomCow"]:
+                        print("IN LINEOFSIGHT", observations["LineOfSight"])
                         cow = observations["LineOfSight"]
                         allow_shoot_action = [observations['Yaw'], observations['XPos'], observations['ZPos'], cow['x'], cow['z']]
-                    elif type == "glass":
-                        print("I SPY GLASS: :oOOOOOOOOOOOOOOOOOO", observations["LineOfSight"])
+                        # [cow yaw, agent xpos, agent zpos, cow xpos, cow zpos]
 
-                #else check observations
-                elif "entities" in observations:
-                    print("found cows:", observations["entities"])
-                    print("\n\n")
-                    
-                    #get positions
-                    agent_info = observations["entities"][0]
-                    cows = sorted(observations["entities"][1:], key=lambda x: math.sqrt((x['x']-agent_info['x'])**2 + (x['z']-agent_info['z'])**2))
-                    print("COWS: ", cows)
-                    if len(cows) != 0:
-                        first_cow = cows[0]
+                    #else check observations
+                    elif "entities" in observations:
+                        print("found cows:", observations["entities"])
+                        print("\n")
+                        
+                        #get positions
+                        if world_state.number_of_observations_since_last_state > 0:
+                            agent_info = observations["entities"][0]
+                            cows = sorted(observations["entities"][1:], key=lambda x: math.sqrt((x['x']-agent_info['x'])**2 + (x['z']-agent_info['z'])**2))
+                            print("COWS: ", cows)
+                            if len(cows) != 0:
+                                first_cow = cows[0]
+                                allow_shoot_action = [agent_info['yaw'], agent_info['x'], agent_info['z'], first_cow['x'], first_cow['z'], 'True']
+
+                    if type == "glass":
+                        print("I SPY GLASS", observations["LineOfSight"])
 
                 # Rotate observation with orientation of agent
                 obs = obs.reshape((2, self.obs_size, self.obs_size))
