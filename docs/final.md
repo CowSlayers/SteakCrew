@@ -30,8 +30,8 @@ Quantitative Eval: Currently, we are rewarding the agent with a reward for 1 for
 
 Qualitative Eval: Our agent passes the following sanity cases:  firing an arrow, moving, and facing different directions. We are able to pass our baseline case to shoot down one cow. To better visualise the algorithm working within the game, we will have our project record and output data used to create error charts and graphs. This will allow us to compare different implementations and visualize the agent’s performance across multiple games. The moonshot case is to have 100% accuracy killing all the cows (each arrow hits a cow), but a value close to 100% would also indicate the algorithm is effective.
 
-![Rewards over time 5hr](https://github.com/CowSlayers/SteakCrew/blob/main/static/returns.png?raw=true)
-![Rewards over time 7hr]
+![Rewards over time 5hr](https://github.com/CowSlayers/SteakCrew/blob/main/static/returns5hrs.png?raw=true)
+![Rewards over time 7hr](https://github.com/CowSlayers/SteakCrew/blob/main/static/returns7hrs.png?raw=true)
 
 The images above show the rewards earned over time in relation to the amount of steps taken. For rewards, we used <RewardForDamagingEntity> to give a reward of 1 whenever either a Cow or MushroomCow is hit. We also used <RewardforCollectingItem> with a reward of 2 when “beef” was picked up. A beef item would only appear if a cow is killed, so this reward is essentially for killing a cow, rather than just damaging it.
 
@@ -49,9 +49,12 @@ https://github.com/microsoft/malmo/blob/master/Schemas/Types.xsd
 XML Schema Documentation:
 http://microsoft.github.io/malmo/0.16.0/Schemas/MissionHandlers.html
 
-Exploding Arrows Tutorial:
-https://www.youtube.com/watch?v=8EzKGEGTe_E&t=121s
-
-Key Input:
+Simulating Key Presses:
 https://pypi.org/project/pynput/
 https://www.youtube.com/watch?v=DTnz8wA6wpw
+
+Exploding Arrows Setup:
+https://youtu.be/8EzKGEGTe_E?t=121
+
+More Info on Proximal Policy Optimization:
+https://github.com/tsmatz/reinforcement-learning-tutorials/blob/master/04-ppo.ipynb
