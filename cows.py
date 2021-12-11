@@ -36,7 +36,6 @@ class CowShooter(gym.Env):
             2: 'turn -1',  # Turn 90 degrees to the left
             3: 'attack 1'  # Destroy block
         }
-        self.shots_taken = 0
         self.init = 0
 
         # Rllib Parameters
@@ -55,8 +54,10 @@ class CowShooter(gym.Env):
         # DiamondCollector Parameters
         self.obs = None
         self.allow_shoot_action = False
+        self.shots_taken = 0
         self.episode_step = 0
         self.episode_return = 0
+        self.accuracy = []
         self.returns = []
         self.steps = []
 
@@ -71,6 +72,7 @@ class CowShooter(gym.Env):
         world_state = self.init_malmo()
 
         # Reset Variables
+        self.accuracy.append(self.shots_taken)
         self.returns.append(self.episode_return)
         current_step = self.steps[-1] if len(self.steps) > 0 else 0
         self.steps.append(current_step + self.episode_step)
@@ -232,7 +234,7 @@ class CowShooter(gym.Env):
             time.sleep(.2)
             self.episode_step += 1
         elif len(self.allow_shoot_action) == 7: #found beef/leather
-            print("WALK TOWARDS BEEF/LEATHER")
+            #print("WALK TOWARDS BEEF/LEATHER")
             agent_vector = [self.allow_shoot_action[1], self.allow_shoot_action[2]]
             bl_vector = [self.allow_shoot_action[3], self.allow_shoot_action[4]]
             direction_vector = [bl_vector[0] - agent_vector[0], bl_vector[1] - agent_vector[1]]
@@ -250,7 +252,7 @@ class CowShooter(gym.Env):
 
 
         elif len(self.allow_shoot_action) == 6: #found cows nearby entities
-            print("SHOOTING COWS FROM NEARBY ENTTIY INFORMATION") 
+            #print("SHOOTING COWS FROM NEARBY ENTTIY INFORMATION") 
             #needs to turn towards the cow
             agent_vector = [self.allow_shoot_action[1], self.allow_shoot_action[2]]
             cow_vector = [self.allow_shoot_action[3], self.allow_shoot_action[4]]
@@ -258,21 +260,21 @@ class CowShooter(gym.Env):
 
             x = direction_vector[0]
             z = direction_vector[1]
-            print("atan2: ", math.atan2(direction_vector[1], direction_vector[0]))
+            #print("atan2: ", math.atan2(direction_vector[1], direction_vector[0]))
             radians = math.atan2(direction_vector[1],direction_vector[0])
 
             degrees = radians * 180 / math.pi
             
             yaw = degrees - 90
 
-            print("shooting at yaw: ", yaw)
+            #print("shooting at yaw: ", yaw)
             self.agent_host.sendCommand("setYaw {}".format(yaw))
 
             distance = math.sqrt((self.allow_shoot_action[4] -  self.allow_shoot_action[2])**2 + (self.allow_shoot_action[3] - self.allow_shoot_action[1])**2)
             self.agent_host.sendCommand("move 0")
             self.agent_host.sendCommand("turn 0")
 
-            print("GOES HERE SHOOTING NEARBY ENTITY for distance: ", distance)
+            #print("GOES HERE SHOOTING NEARBY ENTITY for distance: ", distance)
 
             #calculate pitch based off of distance
             #int pitch
@@ -298,7 +300,7 @@ class CowShooter(gym.Env):
             self.agent_host.sendCommand("move 0")
             self.agent_host.sendCommand("turn 0")
 
-            print("GOES HERE SHOOTING lineofsight for distance: ", distance)
+            #print("GOES HERE SHOOTING lineofsight for distance: ", distance)
 
             #calculate pitch based off of distance
             #int pitch
@@ -328,6 +330,9 @@ class CowShooter(gym.Env):
         for r in world_state.rewards:
             reward += r.getValue()
         self.episode_return += reward
+
+        print(world_state.rewards)
+        print(world_state.rewards.__dict__)
 
         return self.obs, reward, done, dict()
 
@@ -397,7 +402,7 @@ class CowShooter(gym.Env):
                             <FlatWorldGenerator generatorString="3;7,2;1;"/>
                             <DrawingDecorator>''' + \
                                 "<DrawCuboid x1='{}' x2='{}' y1='2' y2='2' z1='{}' z2='{}' type='air'/>".format(-self.size, self.size, -self.size, self.size) + \
-                                "<DrawCuboid x1='{}' x2='{}' y1='1' y2='1' z1='{}' z2='{}' type='bedrock'/>".format(-self.size, self.size, -self.size, self.size) + \
+                                "<DrawCuboid x1='{}' x2='{}' y1='1' y2='1' z1='{}' z2='{}' type='obsidian'/>".format(-self.size, self.size, -self.size, self.size) + \
                                 my_xml + \
                                 my_xml2 + \
                                 '''
@@ -405,7 +410,7 @@ class CowShooter(gym.Env):
                                 <DrawBlock x='1' y='2' z='-1' type='command_block'/>
                                 <DrawBlock x='1' y='2' z='-2' type='command_block'/>
                                 <DrawBlock x='0'  y='2' z='0' type='air' />
-                                <DrawBlock x='0'  y='1' z='0' type='stone' />
+                                <DrawBlock x='0'  y='1' z='0' type='bedrock' />
                             </DrawingDecorator>
                             <ServerQuitWhenAnyAgentFinishes/>
                             <ServerQuitFromTimeUp timeLimitMs="60000"/>
@@ -517,7 +522,7 @@ class CowShooter(gym.Env):
                     los = observations[u'LineOfSight']
                     type=los["type"]
                     if type in ["Cow", "MushroomCow"]:
-                        print("IN LINEOFSIGHT", observations["LineOfSight"])
+                        #print("IN LINEOFSIGHT", observations["LineOfSight"])
                         cow = observations["LineOfSight"]
                         allow_shoot_action = [observations['Yaw'], observations['XPos'], observations['ZPos'], cow['x'], cow['z']]
                         # [cow yaw, agent xpos, agent zpos, cow xpos, cow zpos]
@@ -525,8 +530,8 @@ class CowShooter(gym.Env):
 
                     #else check observations
                     elif "entities" in observations:
-                        print("found cows")
-                        print("\n")
+                        #print("found cows")
+                        #print("\n")
                         
                         #get positions
                         if world_state.number_of_observations_since_last_state > 0:
@@ -539,14 +544,12 @@ class CowShooter(gym.Env):
                             else:
                                 cows = sorted([ent for ent in observations["entities"][1:] if ent['name'] in ['Cow', 'MushroomCow']], key=lambda x: math.sqrt((x['x']-agent_info['x'])**2 + (x['z']-agent_info['z'])**2))
                                 if len(cows) != 0:
-                                    print("cows? :", cows)
-                                    print()
-                                    print("NUMBER OF COWS nearby: ", len(cows))
+                                    #print("cows? :", cows)
+                                    #print()
+                                    #print("NUMBER OF COWS nearby: ", len(cows))
                                     first_cow = cows[0]
                                     allow_shoot_action = [agent_info['yaw'], agent_info['x'], agent_info['z'], first_cow['x'], first_cow['z'], 'True']
 
-                    if type == "glass":
-                        print("I SPY GLASS", observations["LineOfSight"])
 
                 # Rotate observation with orientation of agent
                 obs = obs.reshape((2, self.obs_size, self.obs_size))
@@ -583,6 +586,20 @@ class CowShooter(gym.Env):
         with open('returns.txt', 'w') as f:
             for step, value in zip(self.steps[1:], self.returns[1:]):
                 f.write("{}\t{}\n".format(step, value)) 
+
+        #second graph
+        acc = [self.returns[1:][i]/self.accuracy[1:][i] for i in range(len(self.returns[1:]))]
+        returns_smooth = np.convolve(acc, box, mode='same')
+        plt.clf()
+        plt.plot(self.steps[1:], returns_smooth)
+        plt.title('Cow Shooter')
+        plt.ylabel('Reward Ratio')
+        plt.xlabel('Steps')
+        plt.savefig('arrowreward.png')
+
+        with open('accuracy.txt', 'w') as f2:
+            for step, value in zip(self.steps[1:], acc):
+                f2.write("{}\t{}\n".format(step, value))
 
 
 if __name__ == '__main__':
